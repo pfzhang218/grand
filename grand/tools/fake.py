@@ -43,7 +43,7 @@ def min_2_vectors_pos(v_a, v_b):
     return min of same index value vector and 0 if negative
     '''
     v_min = min_2_vectors(v_a, v_b)
-    idx_neg     = np.where(v_min < 0)[0]
+    idx_neg     = np.where(v_min < 0)
     v_min[idx_neg] = 0.0    
-    return v_a
+    return v_min
     

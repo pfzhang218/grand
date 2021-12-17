@@ -2,7 +2,7 @@ from grand.tools.fake import *
 
 v_a = np.array([1,5,6])
 v_b = np.array([2,2,9])
-
+v_c = np.array([-1,4,9])
 
 
 def test_max_2_vectors():
@@ -18,4 +18,7 @@ def test_min_2_vectors():
 
 
 def test_min_2_vectors_pos():
-    assert False
+    ret_ok=[0,4,6]
+    ret = min_2_vectors_pos(v_a,v_c)
+    np.testing.assert_array_equal(ret, ret_ok)
+
