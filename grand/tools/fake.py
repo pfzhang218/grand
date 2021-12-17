@@ -29,6 +29,7 @@ def min_2_vectors(v_a, v_b):
        b=[2,2,9]
        
        return=[1,2,6]
+       
     :param v_a: numpy vector size n
     :param v_b: numpay vector size n
     :return: numpay vector size n
