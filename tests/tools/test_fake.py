@@ -6,8 +6,9 @@ v_b = np.array([2,2,9])
 
 
 def test_max_2_vectors():
-    assert  False
-
+    ret = max_2_vectors(v_a, v_b)
+    ret_ok = np.array([2,5,9])
+    np.testing.assert_array_equal(ret, ret_ok)
 
 
 def test_min_2_vectors():

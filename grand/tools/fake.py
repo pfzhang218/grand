@@ -17,8 +17,8 @@ def max_2_vectors(v_a, v_b):
     :param v_b: numpay vector size n
     :return: numpay vector size n
     '''
-    v_ab= np.vstack((v_a,vb))
-    return v_ab.max(axis=1)
+    v_ab= np.vstack((v_a,v_b))
+    return v_ab.max(axis=0)
 
 
 def min_2_vectors(v_a, v_b):
@@ -34,8 +34,8 @@ def min_2_vectors(v_a, v_b):
     :param v_b: numpay vector size n
     :return: numpay vector size n
     '''
-    v_ab= np.vstack((v_a,v_a))
-    ret = v_ab.min(axis=1)
+    v_ab= np.vstack((v_a,v_b))
+    return v_ab.min(axis=0)
     
     
 def min_2_vectors_pos(v_a, v_b):
