@@ -1,0 +1,211 @@
+# This Python file uses the following encoding: utf-8
+import numpy as np
+import matplotlib.pyplot as plt
+from Time_domain_Shower_Edata_get import time_data_get
+from FFT_get import fftget
+import h5py
+from IFFT_get import ifftget
+from numpy.ma import log10, abs
+from equivalent import CEL
+from galacticnoise_get import gala
+from LNAparameter_get import LNA_get
+from Filterparameter import filter_get
+from make_new import mkdir
+import os
+import os.path
+import shutil
+
+rootdir = "..//data//"
+print(rootdir)
+verse = []
+target = []
+for root in os.listdir(rootdir):
+        # print(root)
+    # print(os.path.isdir(root))
+    # if os.path.isdir(root) == True:            #判断是否为文件夹
+        verse.append(root)
+        # print(root)
+# print(verse)
+# print(type(verse))
+#=====================================若文件夹以Stshp开头，则加入待处理目标=========================================
+for item in verse:
+    if item.startswith('Stshp_') == True:
+        target.append(item)
+# print(target)
+
+for i in range(0, len(target)):
+    file_dir = "..//data//" + target[i]
+    print(file_dir)
+    list1 = target[i].split('_')
+
+
+    primary = list1[3]
+    energy = float(list1[4])
+    e_theta = float(list1[5])
+    e_phi = float(list1[6])
+    case = float(list1[7])
+
+
+    print("primary is:" , primary)
+    print("energy is:", energy, "Eev")
+    print("theta is:", e_theta, "degree")
+    print("phi is:", e_phi, "degree")
+    print("case num is:", case)
+#==================================开关===========================================
+
+    savetxt = 1  # savetxt=0 Don't save output file ,savetxt=1 save output file
+    show_flag = 0
+    noise_flag = 0
+
+
+    if savetxt == 1:
+        if noise_flag == 0:
+            outfile_voc =  "..//result//" + target[i] + '//output_withoutnoise//voc'
+            outfile_vlna =  "..//result//" + target[i] + '//output_withoutnoise//Vlna'
+            outfile_vcable =  "..//result//" + target[i] + '//output_withoutnoise//Vlna_cable'
+            outfile_vfilter =  "..//result//" + target[i] + '//output_withoutnoise//Vfilter'
+        elif noise_flag == 1:
+            outfile_voc = "..//result//" + target[i] + '//output//voc'
+            outfile_vlna = "..//result//" + target[i] + '//output//Vlna'
+            outfile_vcable = "..//result//" + target[i] + '//output//Vlna_cable'
+            outfile_vfilter = "..//result//" + target[i] + '//output//Vfilter'
+
+        mkdir(outfile_voc)
+        mkdir(outfile_vlna)
+        mkdir(outfile_vcable)
+        mkdir(outfile_vfilter)
+#==========================将粒子类型、能级、角度、事件编号写入parameter========================
+    case_index = 'primary is:' + str(primary) + ';           energy is: ' + str(energy) + ' Eev;          theta is: ' + str(
+        e_theta) + ' degree;          phi is: ' + str(e_phi) + ' degree;          case num is:' + str(case)
+    with open("..//result//" + target[i] + "//parameter.txt", 'w') as f:
+        f.write(case_index)
+
+        source_root = file_dir + '//antpos.dat'
+        target_root = "..//result//" + target[i]
+        shutil.copy(source_root,target_root)
+
+        # ===================================任意输入文件先生成子程序需要的输入参数================================================
+        #  ================================Change according to actual situation==========================================
+        # Select the galactic noise LST at the LST moment
+        # lst = int(input("please input lst:"))
+        # demo = int(input("please input demo number:"))
+        lst = 18
+        Ts = 0.5  # Manually enter the same time interval as the .trace file
+        random = 0
+        E_path = file_dir + '//a' + str(random) + '.trace'
+        #  ===========================start calculating===================
+        [t_cut, ex_cut, ey_cut, ez_cut, fs, f0, f, f1, N] = time_data_get(E_path, Ts, show_flag)  # Signal interception
+
+        Edata = ex_cut
+        Edata = np.column_stack((Edata, ey_cut))
+        Edata = np.column_stack((Edata, ez_cut))
+
+        [E_shower_fft, E_shower_fft_m_single, E_shower_fft_p_single] = fftget(Edata, N, f1,
+                                                                              show_flag)  # Frequency domain signal
+        # =======Equivalent length================
+        [Lce_complex, antennas11_complex_short] = CEL(e_theta, e_phi, N, f0, 1, show_flag)
+
+        Lcehang = Lce_complex.shape[0]
+        Lcelie = Lce_complex.shape[2]
+        # ======Galaxy noise power spectrum density, power, etc.=====================
+        [galactic_v_complex_double, galactic_v_time] = gala(lst, N, f0, f1, show_flag)
+        # =================== LNA=====================================================
+        [rou1_complex, rou2_complex, rou3_complex] = LNA_get(antennas11_complex_short, N, f0, 1, show_flag)
+        # =======================  cable  filter VGA balun=============================================
+        [cable_coefficient, filter_coefficient] = filter_get(N, f0, 1, show_flag)
+
+
+# ===============================开始循环计算========================================================================
+    for num in range(176):
+        # air shower,input file
+        E_path = file_dir+ '//a' + str(num) + '.trace'
+        xunhuan = '//a' + str(num) + '_trace.txt'
+
+        # Output file path and name
+        #  ===========================start calculating===========================================================
+        [t_cut, ex_cut, ey_cut, ez_cut, fs, f0, f, f1, N] = time_data_get(E_path, Ts, show_flag)  # Signal interception
+
+        Edata = ex_cut
+        Edata = np.column_stack((Edata, ey_cut))
+        Edata = np.column_stack((Edata, ez_cut))
+
+        [E_shower_fft, E_shower_fft_m_single, E_shower_fft_p_single] = fftget(Edata, N, f1,
+                                                                              show_flag)  # Frequency domain signal
+
+        # =======Equivalent length================
+
+        # ======Open circuit voltage of air shower=================
+        Voc_shower_complex = np.zeros((Lcehang, Lcelie), dtype=complex)
+        # Frequency domain signal
+        for p in range(Lcelie):
+            Voc_shower_complex[:, p] = Lce_complex[:, 0, p] * E_shower_fft[:, 0] + Lce_complex[:, 1, p] * E_shower_fft[:,
+                                                                                                          1] + Lce_complex[
+                                                                                                               :, 2,
+                                                                                                               p] * E_shower_fft[
+                                                                                                                    :,
+                                                                                                                    2] + 0
+        # time domain signal
+        [Voc_shower_t, Voc_shower_m_single, Voc_shower_p_single] = ifftget(Voc_shower_complex, N, f1, 2)
+
+        # ======Galaxy noise power spectrum density, power, etc.=====================
+
+        # ===========Voltage with added noise=======================================
+        Voc_noise_t = np.zeros((Lcehang, Lcelie))
+        Voc_noise_complex = np.zeros((Lcehang, Lcelie), dtype=complex)
+        for p in range(Lcelie):
+            if noise_flag == 0:
+                Voc_noise_t[:, p] = Voc_shower_t[:, p]
+                Voc_noise_complex[:, p] = Voc_shower_complex[:, p]
+            elif noise_flag == 1:
+                Voc_noise_t[:, p] = Voc_shower_t[:, p] + galactic_v_time[:, p]
+                Voc_noise_complex[:, p] = Voc_shower_complex[:, p] + galactic_v_complex_double[:, p]
+
+        [Voc_noise_t_ifft, Voc_noise_m_single, Voc_noise_p_single] = ifftget(Voc_noise_complex, N, f1, 2)
+
+        # ==================Voltage after LNA=====================================================
+        V_LNA_complex = np.zeros((N, Lcelie), dtype=complex)
+        for p in range(Lcelie):
+            V_LNA_complex[:, p] = rou1_complex[:, p] * rou2_complex[:, p] * rou3_complex[:, p] * Voc_noise_complex[:, p] + 0
+        [V_LNA_t, V_LNA_m_single, V_LNA_p_single] = ifftget(V_LNA_complex, N, f1, 2)
+
+        # ======================Voltage after  cable=============================================
+        V_cable_complex = np.zeros((N, Lcelie), dtype=complex)
+        for p in range(Lcelie):
+            V_cable_complex[:, p] = V_LNA_complex[:, p] * cable_coefficient[:, p] + 0
+        [V_cable_t, V_cable_m_single, V_cable_p_single] = ifftget(V_cable_complex, N, f1, 2)
+
+        # ======================Voltage after filter=============================================
+        V_filter_complex = np.zeros((N, Lcelie), dtype=complex)
+        for p in range(Lcelie):
+            V_filter_complex[:, p] = V_LNA_complex[:, p] * cable_coefficient[:, p] * filter_coefficient[:, p] + 0
+        [V_filter_t, V_filter_m_single, V_filter_p_single] = ifftget(V_filter_complex, N, f1, 2)
+        # ====================Voltage after ADC======================================
+        Length_AD = 14  # 数值有效位，除此以外另加一位符号位
+        Range_AD = 1.8 * 1e6  # 峰峰值,单位uv
+        delta = Range_AD / 2 / (2 ** (Length_AD - 1))
+        V_ADC_t = np.sign(V_filter_t) * np.floor(abs(V_filter_t) / delta) * delta
+        # ======================save .txt=============================================
+        if savetxt == 1:
+            # time--ns,Voltage----uV
+            # 开路电压
+            V_output1 = np.zeros((N, Lcelie + 1))
+            V_output1[:, 0] = t_cut
+            V_output1[:, 1:] = Voc_shower_t[:, :]
+            np.savetxt(outfile_voc + xunhuan, V_output1, fmt="%.10e", delimiter=" ")
+            # LNA
+            V_output4 = np.zeros((N, Lcelie + 1))
+            V_output4[:, 0] = t_cut
+            V_output4[:, 1:] = V_LNA_t[:, :]
+            np.savetxt(outfile_vlna + xunhuan, V_output4, fmt="%.10e", delimiter=" ")
+            # cable
+            V_output2 = np.zeros((N, Lcelie + 1))
+            V_output2[:, 0] = t_cut
+            V_output2[:, 1:] = V_cable_t[:, :]
+            np.savetxt(outfile_vcable + xunhuan, V_output2, fmt="%.10e", delimiter=" ")
+            # 滤波器
+            V_output3 = np.zeros((N, Lcelie + 1))
+            V_output3[:, 0] = t_cut
+            V_output3[:, 1:] = V_filter_t[:, :]
+            np.savetxt(outfile_vfilter + xunhuan, V_output3, fmt="%.10e", delimiter=" ")
+
+        # ======================时延=============================================
